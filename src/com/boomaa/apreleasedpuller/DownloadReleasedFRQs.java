@@ -1,10 +1,22 @@
 package com.boomaa.apreleasedpuller;
 
+import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.imageio.ImageIO;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JTextField;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -15,20 +27,42 @@ public class DownloadReleasedFRQs {
 	private static String examName;
 	private static String baseUrl = "https://apcentral.collegeboard.org";
 	private static int prevYear = 2019;
+	private static JFrame frame;
 	
 	public static void main(String[] args) throws IOException {
-		examName = args[0];
-		String connectUrl = baseUrl + "/courses/ap-" + examName + "/exam";
-		
-		int startYear = 1980;
-		int endYear = prevYear;
-		if (args[1] != null) {
-			startYear = Integer.parseInt(args[1]);
+		if (args.length != 3) {
+			Document examListPage = Jsoup.connect(baseUrl + "/courses").get();
+			
+			Elements courseLinks = examListPage.body().getElementById("main-content").getElementsByTag("a");
+			List<String> examLinks = new ArrayList<String>();
+			String[] examLinksArr = new String[0];
+			for (int i = 0;i < courseLinks.size();i++) {
+				String link = courseLinks.get(i).attributes().get("href");
+				if (link.contains("/courses")) {
+					int start = link.indexOf("/courses/") + 9;
+					int end = link.indexOf("?");
+					examLinks.add(link.substring(start, end));
+				}
+			}
+			
+			initFrame(examLinks.toArray(examLinksArr));
+		} else {
+			
+			int startYear = 1980;
+			int endYear = prevYear;
+			if (args[1] != null) {
+				startYear = Integer.parseInt(args[1]);
+			}
+			if (args[2] != null) {
+				endYear = Integer.parseInt(args[2]);
+			}
+			mainFunction(args[0], startYear, endYear);
 		}
-		if (args[2] != null) {
-			endYear = Integer.parseInt(args[2]);
-		}
-		
+	}
+	
+	private static void mainFunction(String tempExamName, int startYear, int endYear) throws IOException {
+		examName = tempExamName;
+		String connectUrl = baseUrl + "/courses/" + examName + "/exam";
 		
 		setupFilestructure();
 		
@@ -51,6 +85,46 @@ public class DownloadReleasedFRQs {
 			Elements tableLinks = current.body().getElementById("main-content").getElementsByClass("node").get(7).getElementsByTag("a");
 			downloadAllFromTable(tableLinks, prevYear);
 		}
+	}
+	
+	private static void initFrame(String[] exams) throws MalformedURLException, IOException {
+		frame = new JFrame("AP Released FRQ Puller");
+		frame.setIconImage(ImageIO.read(new URL(
+				"https://4f7fdkogwz-flywheel.netdna-ssl.com/bigpicture/wp-content/uploads/sites/10/2018/01/AP-logo.png")));
+		frame.setLayout(new FlowLayout());
+		frame.getContentPane().add(new JComboBox<String>(exams));
+		frame.getContentPane().add(new OverlayField("Start Year", 6));
+		frame.getContentPane().add(new OverlayField("End Year", 6));
+		JButton download = new JButton("Download");
+		
+		download.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				try {
+					mainFunction(
+						getExamName(0), 
+						getTextFieldInt(1), 
+						getTextFieldInt(2)
+					);
+				} catch (NumberFormatException | IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+		});
+		
+		frame.getContentPane().add(download);
+		frame.setSize(300, 150);
+		frame.setLocationRelativeTo(null);
+		frame.setVisible(true);
+	}
+	
+	private static int getTextFieldInt(int n) {
+		return Integer.parseInt(((JTextField) frame.getContentPane().getComponent(n)).getText());
+	}
+	
+	@SuppressWarnings("unchecked")
+	private static String getExamName(int n) {
+		return (String) ((JComboBox<String>) frame.getContentPane().getComponent(n)).getSelectedItem();
 	}
 	
 	private static void downloadAllFromTable(Elements tableLinks, int year) {
