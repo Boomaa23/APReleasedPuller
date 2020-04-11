@@ -47,7 +47,6 @@ public class DownloadReleasedFRQs {
 			
 			initFrame(examLinks.toArray(examLinksArr));
 		} else {
-			
 			int startYear = 1980;
 			int endYear = prevYear;
 			if (args[1] != null) {
@@ -82,7 +81,14 @@ public class DownloadReleasedFRQs {
 		
 		if (endYear >= prevYear) {
 			Document current = Jsoup.connect(connectUrl).get();
-			Elements tableLinks = current.body().getElementById("main-content").getElementsByClass("node").get(7).getElementsByTag("a");
+			Elements allNodes = current.body().getElementById("main-content").getElementsByClass("node");
+			Elements tableLinks = null;
+			for (int i = 0;i < allNodes.size();i++) {
+				if (allNodes.get(i).getElementsByTag("a").size() == 9) {
+					tableLinks = allNodes.get(i).getElementsByTag("a");
+					break;
+				}
+			}
 			downloadAllFromTable(tableLinks, prevYear);
 		}
 	}
