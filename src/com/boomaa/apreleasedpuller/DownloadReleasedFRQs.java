@@ -1,22 +1,25 @@
 package com.boomaa.apreleasedpuller;
 
-import java.awt.FlowLayout;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.imageio.ImageIO;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
-import javax.swing.JTextField;
+import javax.swing.*;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -44,7 +47,7 @@ public class DownloadReleasedFRQs {
 					examLinks.add(link.substring(start, end));
 				}
 			}
-			
+			Collections.sort(examLinks);
 			initFrame(examLinks.toArray(examLinksArr));
 		} else {
 			int startYear = 1980;
@@ -65,7 +68,7 @@ public class DownloadReleasedFRQs {
 		
 		setupFilestructure();
 		
-		Document past = Jsoup.connect(connectUrl + "/past-exam-questions").get();
+		Document past = Jsoup.connect(connectUrl + "/past-exam-questions").followRedirects(true).get();
 		Elements tables = past.body().getElementsByClass("cb-accordion").first().getElementsByClass("panel");
 		for (int i = 0;i < tables.size();i++) {
 			Element table = tables.get(i).getElementsByClass("table").get(0);
@@ -80,20 +83,23 @@ public class DownloadReleasedFRQs {
 		}
 		
 		if (endYear >= prevYear) {
-			Document current = Jsoup.connect(connectUrl).get();
+			Document current = Jsoup.connect(connectUrl).followRedirects(true).get();
 			Elements allNodes = current.body().getElementById("main-content").getElementsByClass("node");
 			Elements tableLinks = null;
 			for (int i = 0;i < allNodes.size();i++) {
-				if (allNodes.get(i).getElementsByTag("a").size() == 9) {
+				int compare = allNodes.get(i).getElementsByTag("a").size();
+				if (compare >= 9) {
 					tableLinks = allNodes.get(i).getElementsByTag("a");
 					break;
 				}
 			}
 			downloadAllFromTable(tableLinks, prevYear);
+			//TODO add dbq/leq/sa store diffs
+			// https://apcentral.collegeboard.org/courses/ap-world-history/exam
 		}
 	}
 	
-	private static void initFrame(String[] exams) throws MalformedURLException, IOException {
+	private static void initFrame(String[] exams) throws IOException {
 		frame = new JFrame("AP Released FRQ Puller");
 		frame.setIconImage(ImageIO.read(new URL(
 				"https://4f7fdkogwz-flywheel.netdna-ssl.com/bigpicture/wp-content/uploads/sites/10/2018/01/AP-logo.png")));
@@ -103,24 +109,37 @@ public class DownloadReleasedFRQs {
 		frame.getContentPane().add(new OverlayField("End Year", 6));
 		JButton download = new JButton("Download");
 		
-		download.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				try {
-					mainFunction(
-						getExamName(0), 
-						getTextFieldInt(1), 
+		download.addActionListener((e) -> {
+			try {
+				mainFunction(
+						getExamName(0),
+						getTextFieldInt(1),
 						getTextFieldInt(2)
-					);
-				} catch (NumberFormatException | IOException e1) {
-					e1.printStackTrace();
-				}
+				);
+			} catch (NumberFormatException | IOException e1) {
+				e1.printStackTrace();
 			}
 		});
 		
 		frame.getContentPane().add(download);
+		JLabel href = new JLabel("<html><a href=''>github.com/Boomaa23/APReleasedPuller</a></html>");
+		frame.getContentPane().add(href);
+		href.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				try {
+					Desktop.getDesktop().browse(new URI("https://github.com/Boomaa23/APReleasedPuller"));
+				} catch (IOException | URISyntaxException e1) {
+					e1.printStackTrace();
+				}
+			}
+		});
+
+		frame.getRootPane().setDefaultButton(download);
 		frame.setSize(300, 150);
 		frame.setLocationRelativeTo(null);
+		frame.setResizable(false);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setVisible(true);
 	}
 	
