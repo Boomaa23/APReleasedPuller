@@ -37,7 +37,7 @@ public class DownloadReleasedFRQs {
 			Document examListPage = Jsoup.connect(baseUrl + "/courses").get();
 			
 			Elements courseLinks = examListPage.body().getElementById("main-content").getElementsByTag("a");
-			List<String> examLinks = new ArrayList<String>();
+			List<String> examLinks = new ArrayList<>();
 			String[] examLinksArr = new String[0];
 			for (int i = 0;i < courseLinks.size();i++) {
 				String link = courseLinks.get(i).attributes().get("href");

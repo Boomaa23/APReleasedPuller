@@ -2,7 +2,8 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>APReleasedPuller</groupId>
   <artifactId>APReleasedPuller</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <version>0.0.1-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -13,6 +14,16 @@
           <groupId>org.jsoup</groupId>
           <artifactId>jsoup</artifactId>
           <version>1.13.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.update4j</groupId>
+            <artifactId>update4j</artifactId>
+            <version>1.4.5</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.6</version>
         </dependency>
     </dependencies>
 
