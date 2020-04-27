@@ -9,10 +9,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,7 +31,13 @@ public class DownloadReleasedFRQs {
 
     public static void main(String[] args) throws IOException {
         if (args.length != 3) {
-            Document examListPage = Jsoup.connect(baseUrl + "/courses").get();
+            Document examListPage = null;
+            try {
+                examListPage = Jsoup.connect(baseUrl + "/courses").get();
+            } catch (UnknownHostException e) {
+                JOptionPane.showMessageDialog(new JFrame(), "No Internet Connection", "Error", JOptionPane.ERROR_MESSAGE);
+                System.exit(1);
+            }
 
             Elements courseLinks = examListPage.body().getElementById("main-content").getElementsByTag("a");
             List<String> examLinks = new ArrayList<String>();
@@ -104,7 +107,7 @@ public class DownloadReleasedFRQs {
         frame.setIconImage(ImageIO.read(new URL(
                 "https://4f7fdkogwz-flywheel.netdna-ssl.com/bigpicture/wp-content/uploads/sites/10/2018/01/AP-logo.png")));
         frame.setLayout(new FlowLayout());
-        frame.getContentPane().add(new JComboBox<String>(exams));
+        frame.getContentPane().add(new JComboBox<>(exams));
         frame.getContentPane().add(new OverlayField("Start Year", 6));
         frame.getContentPane().add(new OverlayField("End Year", 6));
         JButton download = new JButton("Download");
