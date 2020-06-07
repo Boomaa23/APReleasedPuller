@@ -1,14 +1,9 @@
 package com.boomaa.apreleasedpuller;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,13 +13,15 @@ import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 
+import org.apache.pdfbox.io.MemoryUsageSetting;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 public class DownloadReleasedFRQs {
-    private static String examName;
+    private static ExamName examName;
     private static String baseUrl = "https://apcentral.collegeboard.org";
     private static int prevYear = 2019;
     private static JFrame frame;
@@ -39,15 +36,25 @@ public class DownloadReleasedFRQs {
                 System.exit(1);
             }
 
+            //TODO add support for "language and culture" exams
+            String[] noExamArray = {
+                    "AP 2D Art and Design", "AP 3D Art and Design", "AP Capstone",
+                    "AP Computer Science Principles", "AP Drawing", "AP Research", "AP Seminar"
+            };
+            List<String> noExamList = Arrays.asList(noExamArray);
+
             Elements courseLinks = examListPage.body().getElementById("main-content").getElementsByTag("a");
-            List<String> examLinks = new ArrayList<String>();
+            List<String> examLinks = new ArrayList<>();
             String[] examLinksArr = new String[0];
             for (int i = 0;i < courseLinks.size();i++) {
                 String link = courseLinks.get(i).attributes().get("href");
                 if (link.contains("/courses")) {
                     int start = link.indexOf("/courses/") + 9;
                     int end = link.indexOf("?");
-                    examLinks.add(link.substring(start, end));
+                    String name = ExamName.toFormatted(link.substring(start, end));
+                    if (!noExamList.contains(name)) {
+                        examLinks.add(name);
+                    }
                 }
             }
             Collections.sort(examLinks);
@@ -65,9 +72,9 @@ public class DownloadReleasedFRQs {
         }
     }
 
-    private static void mainFunction(String tempExamName, int startYear, int endYear) throws IOException {
-        examName = tempExamName;
-        String connectUrl = baseUrl + "/courses/" + examName + "/exam";
+    private static void mainFunction(String passedExamName, int startYear, int endYear) throws IOException {
+        examName = new ExamName(passedExamName, true);
+        String connectUrl = baseUrl + "/courses/" + examName.getUnformatted() + "/exam";
 
         setupFilestructure();
 
@@ -97,8 +104,6 @@ public class DownloadReleasedFRQs {
                 }
             }
             downloadAllFromTable(tableLinks, prevYear);
-            //TODO add dbq/leq/sa store diffs
-            // https://apcentral.collegeboard.org/courses/ap-world-history/exam
         }
     }
 
@@ -162,8 +167,17 @@ public class DownloadReleasedFRQs {
                 href = baseUrl + href;
             }
             String name = tableLinks.get(i).text();
-            downloadFile(href, getPathFromDocName(name, year));
+            if (checkExcludedFile(href)) {
+                downloadFile(href, getPathFromDocName(name, year));
+            }
+            combineFile("Score Distributions", "subscore_temp.pdf", year);
+            combineFile("Questions", "quest_temp.pdf", year);
+            combineFile("Scoring Guidelines", "sg_temp.pdf", year);
         }
+    }
+
+    private static boolean checkExcludedFile(String href) {
+        return href.contains(".pdf") && !href.contains("course-and-exam") && !href.contains("ced") && !href.contains("?") && !href.contains("quick-reference");
     }
 
     private static String getPathFromDocName(String linkName, int year) {
@@ -176,9 +190,26 @@ public class DownloadReleasedFRQs {
             case "Scoring Statistics":
             case "Score Distributions":
                 return examName + "/" + linkName + "/" + year + ".pdf";
+            case "Subscore Distribution":
+            case "Nonaural Score Distributions":
+                return "subscore_temp.pdf";
+            case "Sight-Singing Questions":
+                return "quest_temp.pdf";
+            case "Sight-Singing Scoring Guidelines":
+                return "sg_temp.pdf";
             default:
-                linkName = linkName.replaceAll("[^\\d]", "");
                 makeFolder(examName + "/Samples & Commentary/" + year);
+                String mod = "";
+                if (linkName.contains("SA")) {
+                    mod += " SAQ";
+                } else if (linkName.contains("LEQ")) {
+                    mod += " LEQ";
+                } else if (linkName.contains("DBQ")) {
+                    mod += " DBQ";
+                } else if (linkName.contains("Sight-Singing")) {
+                    mod += " Sight-Singing";
+                }
+                linkName = linkName.replaceAll("[^\\d]", "") + mod;
                 return examName + "/Samples & Commentary/" + year + "/Question " + linkName + ".pdf";
         }
     }
@@ -188,8 +219,11 @@ public class DownloadReleasedFRQs {
             case "Chief Reader Report":
                 return "Student Performance Q&A";
             case "Scoring Distribution":
+            case "Scoring Distributions":
+            case "Aural Score Distributions":
                 return "Score Distributions";
             case "All Questions":
+            case "Theory Questions":
                 return "Free-Response Questions";
             default:
                 return linkName;
@@ -197,7 +231,7 @@ public class DownloadReleasedFRQs {
     }
 
     private static void setupFilestructure() {
-        makeFolder(examName);
+        makeFolder(examName.toString());
         makeFolder(examName + "/Questions");
         makeFolder(examName + "/Samples & Commentary");
         makeFolder(examName + "/Score Distributions");
@@ -215,6 +249,7 @@ public class DownloadReleasedFRQs {
     }
 
     private static void downloadFile(String url, String outputPath) {
+        System.out.println("Downloading from: " + url);
         try (BufferedInputStream in = new BufferedInputStream(new URL(url).openStream());
              FileOutputStream fileOutputStream = new FileOutputStream(outputPath)) {
             byte[] dataBuffer = new byte[1024];
@@ -222,6 +257,24 @@ public class DownloadReleasedFRQs {
             while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
                 fileOutputStream.write(dataBuffer, 0, bytesRead);
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void combineFile(String folderName, String tempFileName, int year) {
+        String sdPath = examName + "/" + folderName + "/" + year + ".pdf";
+        PDFMergerUtility merger = new PDFMergerUtility();
+        try {
+            File tempFile = new File(tempFileName);
+            if (!tempFile.exists()) {
+                return;
+            }
+            merger.addSource(new File(sdPath));
+            merger.addSource(tempFile);
+            merger.setDestinationFileName(sdPath);
+            merger.mergeDocuments(MemoryUsageSetting.setupMainMemoryOnly());
+            tempFile.delete();
         } catch (IOException e) {
             e.printStackTrace();
         }

