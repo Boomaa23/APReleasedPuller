@@ -15,6 +15,7 @@ import javax.swing.*;
 
 import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -74,15 +75,25 @@ public class DownloadReleasedFRQs {
 
     private static void mainFunction(String passedExamName, int startYear, int endYear) throws IOException {
         examName = new ExamName(passedExamName, true);
-        String connectUrl = baseUrl + "/courses/" + examName.getUnformatted() + "/exam";
+        String connectUrl = baseUrl + "/courses/" + examName.getUnformatted() + "/exam/";
 
         setupFilestructure();
 
-        Document past = Jsoup.connect(connectUrl + "/past-exam-questions").followRedirects(true).get();
+        Document past = null;
+        try {
+            past = Jsoup.connect(connectUrl + "past-exam-questions").followRedirects(true).get();
+        } catch (HttpStatusException e) {
+            //TODO remove AP Gov hardcoding for differing URL schema (united states -> us)
+            past = Jsoup.connect(connectUrl + "ap-us-government-and-politics-past-exam-questions").followRedirects(true).get();
+        }
         Elements tables = past.body().getElementsByClass("cb-accordion").first().getElementsByClass("panel");
-        for (int i = 0;i < tables.size();i++) {
+        for (int i = 0; i < tables.size(); i++) {
             Element table = tables.get(i).getElementsByClass("table").get(0);
-            int year = Integer.parseInt(table.getElementsByTag("caption").first().text().replaceAll("[^\\d]", ""));
+            Elements title = table.getElementsByTag("caption");
+            if (title.size() == 0) {
+                title = tables.get(i).getElementsByClass("panel-title");
+            }
+            int year = Integer.parseInt(title.first().text().replaceAll("[^\\d]", ""));
             if (year < startYear) {
                 continue;
             } else if (year > endYear) {
