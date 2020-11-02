@@ -15,7 +15,7 @@ public class ExamName {
     }
 
     private String artFormatCheck(String intermediate) {
-        return artFormatCheck(artFormatCheck(intermediate, "3"), "2");
+        return intermediate.contains("art") ? artFormatCheck(artFormatCheck(intermediate, "3"), "2") : intermediate;
     }
 
     private String artFormatCheck(String intermediate, String search) {
