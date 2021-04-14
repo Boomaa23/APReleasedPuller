@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -24,7 +25,8 @@ import org.jsoup.select.Elements;
 public class DownloadReleasedFRQs {
     private static ExamName examName;
     private static String baseUrl = "https://apcentral.collegeboard.org";
-    private static int prevYear = 2019;
+    private static int minYear = 1980;
+    private static int maxYear = 2019;
     private static JFrame frame;
 
     public static void main(String[] args) throws IOException {
@@ -39,7 +41,7 @@ public class DownloadReleasedFRQs {
 
             //TODO add support for "language and culture" exams
             String[] noExamArray = {
-                    "AP 2D Art and Design", "AP 3D Art and Design", "AP Capstone",
+                    "AP 2D Art and Design", "AP 3D Art and Design", "AP Art and Design", "AP Capstone",
                     "AP Computer Science Principles", "AP Drawing", "AP Research", "AP Seminar"
             };
             List<String> noExamList = Arrays.asList(noExamArray);
@@ -58,11 +60,12 @@ public class DownloadReleasedFRQs {
                     }
                 }
             }
+            examLinks.add("AP Physics B");
             Collections.sort(examLinks);
             initFrame(examLinks.toArray(examLinksArr));
         } else {
-            int startYear = 1980;
-            int endYear = prevYear;
+            int startYear = minYear;
+            int endYear = maxYear;
             if (args[1] != null) {
                 startYear = Integer.parseInt(args[1]);
             }
@@ -80,11 +83,19 @@ public class DownloadReleasedFRQs {
         setupFilestructure();
 
         Document past = null;
+        //TODO remove AP Gov hardcoding for differing URL schema (united states -> us)
+        //TODO remove AP Physics B hardcoding for archived exam
+        if (connectUrl.contains("united")) {
+            connectUrl += "ap-us-government-and-politics-past-exam-questions";
+        } else if (connectUrl.contains("physics-b")) {
+            connectUrl = baseUrl + "/courses/resources/ap-physics-b-exam/";
+        } else {
+            connectUrl += "past-exam-questions";
+        }
         try {
-            past = Jsoup.connect(connectUrl + "past-exam-questions").followRedirects(true).get();
+            past = Jsoup.connect(connectUrl).followRedirects(true).get();
         } catch (HttpStatusException e) {
-            //TODO remove AP Gov hardcoding for differing URL schema (united states -> us)
-            past = Jsoup.connect(connectUrl + "ap-us-government-and-politics-past-exam-questions").followRedirects(true).get();
+            e.printStackTrace();
         }
         Elements tables = past.body().getElementsByClass("cb-accordion").first().getElementsByClass("panel");
         for (int i = 0; i < tables.size(); i++) {
@@ -103,7 +114,7 @@ public class DownloadReleasedFRQs {
             downloadAllFromTable(hrefList, year);
         }
 
-        if (endYear >= prevYear) {
+        if (endYear >= maxYear) {
             Document current = Jsoup.connect(connectUrl).followRedirects(true).get();
             Elements allNodes = current.body().getElementById("main-content").getElementsByClass("node");
             Elements tableLinks = null;
@@ -114,7 +125,7 @@ public class DownloadReleasedFRQs {
                     break;
                 }
             }
-            downloadAllFromTable(tableLinks, prevYear);
+            downloadAllFromTable(tableLinks, maxYear);
         }
     }
 
@@ -132,8 +143,8 @@ public class DownloadReleasedFRQs {
             try {
                 mainFunction(
                         getExamName(0),
-                        getTextFieldInt(1),
-                        getTextFieldInt(2)
+                        Objects.requireNonNullElse(getTextFieldInt(1), minYear),
+                        Objects.requireNonNullElse(getTextFieldInt(2), maxYear)
                 );
             } catch (NumberFormatException | IOException e1) {
                 e1.printStackTrace();
@@ -162,8 +173,9 @@ public class DownloadReleasedFRQs {
         frame.setVisible(true);
     }
 
-    private static int getTextFieldInt(int n) {
-        return Integer.parseInt(((JTextField) frame.getContentPane().getComponent(n)).getText());
+    private static Integer getTextFieldInt(int n) {
+        String text = ((JTextField) frame.getContentPane().getComponent(n)).getText();
+        return !text.isBlank() ? Integer.parseInt(text) : null;
     }
 
     @SuppressWarnings("unchecked")
