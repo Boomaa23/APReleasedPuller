@@ -1,18 +1,30 @@
 package com.boomaa.apreleasedpuller;
 
-import java.awt.*;
+import java.awt.Desktop;
+import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.*;
-import java.net.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 import javax.imageio.ImageIO;
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JTextField;
 
 import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
@@ -24,9 +36,9 @@ import org.jsoup.select.Elements;
 
 public class DownloadReleasedFRQs {
     private static ExamName examName;
-    private static String baseUrl = "https://apcentral.collegeboard.org";
-    private static int minYear = 1980;
-    private static int maxYear = 2019;
+    private static final String baseUrl = "https://apcentral.collegeboard.org";
+    private static final int minYear = 1980;
+    private static final int maxYear = Calendar.getInstance().get(Calendar.YEAR);
     private static JFrame frame;
 
     public static void main(String[] args) throws IOException {
@@ -49,8 +61,8 @@ public class DownloadReleasedFRQs {
             Elements courseLinks = examListPage.body().getElementById("main-content").getElementsByTag("a");
             List<String> examLinks = new ArrayList<>();
             String[] examLinksArr = new String[0];
-            for (int i = 0;i < courseLinks.size();i++) {
-                String link = courseLinks.get(i).attributes().get("href");
+            for (Element courseLink : courseLinks) {
+                String link = courseLink.attributes().get("href");
                 if (link.contains("/courses")) {
                     int start = link.indexOf("/courses/") + 9;
                     int end = link.indexOf("?");
@@ -139,12 +151,15 @@ public class DownloadReleasedFRQs {
         frame.getContentPane().add(new OverlayField("End Year", 6));
         JButton download = new JButton("Download");
 
+        Integer tfMin = getTextFieldInt(1);
+        Integer tfMax = getTextFieldInt(2);
+
         download.addActionListener((e) -> {
             try {
                 mainFunction(
                         getExamName(0),
-                        Objects.requireNonNullElse(getTextFieldInt(1), minYear),
-                        Objects.requireNonNullElse(getTextFieldInt(2), maxYear)
+                        tfMin != null ? tfMin : minYear,
+                        tfMax != null ? tfMax : maxYear
                 );
             } catch (NumberFormatException | IOException e1) {
                 e1.printStackTrace();
@@ -175,7 +190,7 @@ public class DownloadReleasedFRQs {
 
     private static Integer getTextFieldInt(int n) {
         String text = ((JTextField) frame.getContentPane().getComponent(n)).getText();
-        return !text.isBlank() ? Integer.parseInt(text) : null;
+        return !text.isEmpty() ? Integer.parseInt(text) : null;
     }
 
     @SuppressWarnings("unchecked")
